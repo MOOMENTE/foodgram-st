@@ -1,0 +1,18 @@
+max-line-length = 79
+ignore = BLK100
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    migrations,
+    .venv,
+    env,
+    .env,
+    *.sqlite3,
+    *.md,
+    *.txt
+per-file-ignores =
+    */migrations/*:E501
+    */settings.py:E501
+    */management/commands/*:E501
+extend-ignore = BLK100
