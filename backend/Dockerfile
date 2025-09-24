@@ -1,10 +1,23 @@
-FROM python:3.11
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip3 install -r requirements.txt --no-cache-dir
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y build-essential libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt ./
+
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["gunicorn", "foodgram.wsgi", "--bind", "0:8000" ]
+RUN mkdir -p /app/collected_static /app/media \
+    && chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["gunicorn", "foodgram.wsgi:application", "--bind", "0.0.0.0:8000", "--access-logfile", "-"]

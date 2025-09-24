@@ -1,47 +1,66 @@
 from django.contrib import admin
 
-from .models import (
+from recipes.models import (
     Favorite,
     Ingredient,
     Recipe,
     RecipeIngredient,
+    RecipeShortLink,
     ShoppingCart,
 )
 
 
+class RecipeIngredientInline(admin.TabularInline):
+
+    model = RecipeIngredient
+    extra = 0
+    min_num = 1
+
+
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
+
     list_display = ("name", "measurement_unit")
+    search_fields = ("name",)
     list_filter = ("measurement_unit",)
-    search_fields = ("name", "measurement_unit")
-
-
-class RecipeIngredientInline(admin.TabularInline):
-    model = RecipeIngredient
-    extra = 1
-    min_num = 1
 
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "author", "get_favorites_count")
-    search_fields = ("name", "author__username", "author__email")
-    list_filter = ("author", "created_at")
-    inlines = [RecipeIngredientInline]
 
-    @admin.display(description="Избранное")
-    def get_favorites_count(self, recipe):
-        return recipe.favorites.count()
+    list_display = ("name", "author", "cooking_time", "favorites_count")
+    search_fields = ("name", "author__email", "author__username")
+    list_filter = ("author",)
+    inlines = (RecipeIngredientInline,)
+    readonly_fields = ("favorites_count",)
+    autocomplete_fields = ("author",)
 
-
-@admin.register(RecipeIngredient)
-class RecipeIngredientAdmin(admin.ModelAdmin):
-    list_display = ("recipe", "ingredient", "amount")
-    search_fields = ("recipe__name", "ingredient__name")
+    @admin.display(description="В избранном (шт.)")
+    def favorites_count(self, obj: Recipe) -> int:
+        return obj.favorites.count()
 
 
-@admin.register(Favorite, ShoppingCart)
-class FavoriteAndShoppingCartAdmin(admin.ModelAdmin):
-    list_display = ("user", "recipe")
+@admin.register(Favorite)
+class FavoriteAdmin(admin.ModelAdmin):
+
+    list_display = ("user", "recipe", "added_at")
     search_fields = ("user__email", "recipe__name")
-    list_filter = ("user",)
+    list_filter = ("added_at",)
+    autocomplete_fields = ("user", "recipe")
+
+
+@admin.register(ShoppingCart)
+class ShoppingCartAdmin(admin.ModelAdmin):
+
+    list_display = ("user", "recipe", "added_at")
+    search_fields = ("user__email", "recipe__name")
+    list_filter = ("added_at",)
+    autocomplete_fields = ("user", "recipe")
+
+
+@admin.register(RecipeShortLink)
+class RecipeShortLinkAdmin(admin.ModelAdmin):
+
+    list_display = ("code", "recipe", "created_at")
+    search_fields = ("code", "recipe__name")
+    autocomplete_fields = ("recipe",)

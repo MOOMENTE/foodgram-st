@@ -2,12 +2,11 @@ from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 
 class IsAuthorOrReadOnly(BasePermission):
-    """Разрешение на редактирование объекта"""
+
+    def has_permission(self, request, view):
+        return request.method in SAFE_METHODS or request.user.is_authenticated
 
     def has_object_permission(self, request, view, obj):
-        return (
-            request.method in SAFE_METHODS
-            or obj.author == request.user
-            or request.user.is_staff
-            or request.user.is_superuser
-        )
+        if request.method in SAFE_METHODS:
+            return True
+        return request.user.is_authenticated and obj.author == request.user

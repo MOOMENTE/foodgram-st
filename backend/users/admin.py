@@ -1,34 +1,81 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
-from django.utils.html import format_html
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import Subscription, User
+from users.models import Subscription, User
 
 
 @admin.register(User)
-class UserAdmin(UserAdmin):
+class UserAdmin(BaseUserAdmin):
+
     list_display = (
-        "id",
-        "username",
         "email",
+        "username",
         "first_name",
         "last_name",
-        "is_staff_display",
-        "is_superuser_display",
+        "is_staff",
+        "recipe_count",
+        "subscriber_count",
     )
-    search_fields = ("username", "email")
-    list_filter = ("is_staff", "is_superuser")
+    list_filter = ("is_staff", "is_superuser", "is_active", "groups")
+    search_fields = ("email", "username", "first_name", "last_name")
+    ordering = ("email",)
+    readonly_fields = ("last_login", "date_joined")
+    fieldsets = (
+        (None, {"fields": ("email", "password")}),
+        (
+            "Персональная информация",
+            {"fields": ("username", "first_name", "last_name", "avatar")},
+        ),
+        (
+            "Права доступа",
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            },
+        ),
+        ("Важные даты", {"fields": ("last_login", "date_joined")}),
+    )
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "email",
+                    "username",
+                    "first_name",
+                    "last_name",
+                    "password1",
+                    "password2",
+                    "avatar",
+                ),
+            },
+        ),
+    )
 
-    @admin.display(description="Персонал")
-    def is_staff_display(self, obj):
-        return format_html("✓" if obj.is_staff else "✗")
+    @admin.display(description="Рецептов")
+    def recipe_count(self, obj: User) -> int:
+        return obj.recipes.count()
 
-    @admin.display(description="Администратор")
-    def is_superuser_display(self, obj):
-        return format_html("✓" if obj.is_superuser else "✗")
+    @admin.display(description="Подписчиков")
+    def subscriber_count(self, obj: User) -> int:
+        return obj.subscribers.count()
 
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ("follower", "author")
-    search_fields = ("follower__email", "author__email")
+
+    list_display = ("user", "author", "created_at")
+    search_fields = (
+        "user__email",
+        "user__username",
+        "author__email",
+        "author__username",
+    )
+    list_filter = ("created_at",)
+    autocomplete_fields = ("user", "author")

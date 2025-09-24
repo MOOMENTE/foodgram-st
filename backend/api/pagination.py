@@ -1,11 +1,9 @@
 from rest_framework.pagination import PageNumberPagination
 
-from constants import (
-    PAGES_PAGINATION_PAGE_SIZE,
-    PAGES_PAGINATION_PAGE_SIZE_QUERY_PARAM
-)
+from core.constants import DEFAULT_PAGE_SIZE, PAGE_SIZE_QUERY_PARAM
 
 
-class PagesPagination(PageNumberPagination):
-    page_size_query_param = PAGES_PAGINATION_PAGE_SIZE_QUERY_PARAM
-    page_size = PAGES_PAGINATION_PAGE_SIZE
+class FoodgramPagination(PageNumberPagination):
+
+    page_size = DEFAULT_PAGE_SIZE
+    page_size_query_param = PAGE_SIZE_QUERY_PARAM
