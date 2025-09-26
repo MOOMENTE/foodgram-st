@@ -191,7 +191,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
+        detail_url = request.build_absolute_uri(
+            reverse("recipes-detail", args=(serializer.instance.pk,))
+        )
+        headers = self.get_success_headers({"url": detail_url})
         return self._make_recipe_response(
             serializer.instance,
             status.HTTP_201_CREATED,
