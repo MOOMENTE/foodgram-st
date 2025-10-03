@@ -7,6 +7,11 @@ from django.core.management.base import BaseCommand, CommandError
 from recipes.models import Ingredient
 
 
+DATA_DIR = settings.BASE_DIR.parent / "data"
+INGREDIENTS_FILENAME = "ingredients.csv"
+DEFAULT_INGREDIENTS_PATH = DATA_DIR / INGREDIENTS_FILENAME
+
+
 class Command(BaseCommand):
     help = (
         "Загружает список ингредиентов в базу данных из CSV файла."
@@ -27,9 +32,7 @@ class Command(BaseCommand):
         if path:
             file_path = Path(path)
         else:
-            file_path = (
-                Path(settings.BASE_DIR).parent / "data" / "ingredients.csv"
-            )
+            file_path = DEFAULT_INGREDIENTS_PATH
         if not file_path.exists():
             raise CommandError(f"Файл {file_path} не найден.")
 

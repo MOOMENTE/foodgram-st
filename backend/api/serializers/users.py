@@ -1,9 +1,6 @@
 from typing import Any, Optional
 
-from djoser.serializers import (
-    UserCreateSerializer as DjoserUserCreateSerializer,
-    UserSerializer as DjoserUserSerializer,
-)
+from djoser.serializers import UserSerializer as DjoserUserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 
@@ -32,50 +29,11 @@ class UserSerializer(DjoserUserSerializer):
 
     def get_is_subscribed(self, obj: User) -> bool:
         request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return False
-        return obj.subscribers.filter(user=request.user).exists()
-
-
-class UserCreateSerializer(DjoserUserCreateSerializer):
-
-    class Meta(DjoserUserCreateSerializer.Meta):
-        model = User
-        fields = (
-            "id",
-            "email",
-            "username",
-            "first_name",
-            "last_name",
-            "password",
+        return bool(
+            request
+            and request.user.is_authenticated
+            and obj.subscribers.filter(user=request.user).exists()
         )
-        extra_kwargs = {"password": {"write_only": True}}
-
-    def validate_email(self, value: Optional[str]) -> str:
-        normalized = (value or "").strip()
-        if not normalized:
-            field = self.fields.get("email")
-            message = None
-            if field is not None:
-                message = field.error_messages.get(
-                    "blank",
-                    field.error_messages.get("required"),
-                )
-            if not message:
-                message = "Адрес электронной почты обязателен."
-            raise serializers.ValidationError(message)
-
-        existing_users = User.objects.filter(email__iexact=normalized)
-        if self.instance is not None:
-            existing_users = existing_users.exclude(pk=self.instance.pk)
-        if existing_users.exists():
-            message = User._meta.get_field("email").error_messages.get(
-                "unique",
-                "Пользователь с таким адресом электронной почты уже зарегистрирован.",
-            )
-            raise serializers.ValidationError(message)
-
-        return normalized
 
 
 class AvatarSerializer(serializers.ModelSerializer):
@@ -127,4 +85,12 @@ class SubscriptionSerializer(UserSerializer):
         return obj.recipes.count()
 
     def _get_recipes_limit(self) -> Optional[int]:
-        return self.context.get(RECIPES_LIMIT_QUERY_PARAM)
+        value = self.context.get(RECIPES_LIMIT_QUERY_PARAM)
+        if value is None:
+            return None
+        if isinstance(value, int):
+            return value
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None

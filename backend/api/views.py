@@ -15,6 +15,7 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
 from api.filters import IngredientFilter, RecipeFilter
@@ -171,7 +172,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             "recipe_ingredients__ingredient"
         )
     )
-    permission_classes = (IsAuthorOrReadOnly,)
+    permission_classes = (IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly)
     filterset_class = RecipeFilter
     pagination_class = FoodgramPagination
 
@@ -183,29 +184,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if self.action in {"favorite", "shopping_cart"}:
             return RecipeCompactSerializer
         return RecipeReadSerializer
-
-    def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        detail_url = request.build_absolute_uri(
-            reverse("recipes-detail", args=(serializer.instance.pk,))
-        )
-        headers = self.get_success_headers({"url": detail_url})
-        return self._make_recipe_response(
-            serializer.instance,
-            status.HTTP_201_CREATED,
-            headers,
-        )
-
-    def update(self, request, *args, **kwargs):
-        return self._update_recipe(request, partial=False)
-
-    def partial_update(self, request, *args, **kwargs):
-        return self._update_recipe(request, partial=True)
 
     @action(
         detail=True,
@@ -298,29 +276,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if deleted == 0:
             raise ValidationError("Рецепт не найден в списке.")
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def _update_recipe(self, request, *, partial: bool) -> Response:
-        instance = self.get_object()
-        serializer = self.get_serializer(
-            instance,
-            data=request.data,
-            partial=partial,
-        )
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return self._make_recipe_response(serializer.instance, status.HTTP_200_OK)
-
-    def _make_recipe_response(
-        self,
-        recipe: Recipe,
-        status_code: int,
-        headers: Optional[dict[str, str]] = None,
-    ) -> Response:
-        read_serializer = RecipeReadSerializer(
-            recipe,
-            context=self.get_serializer_context(),
-        )
-        return Response(read_serializer.data, status=status_code, headers=headers)
 
     @staticmethod
     def _build_shopping_list_lines(items: Iterable[dict]) -> list[str]:

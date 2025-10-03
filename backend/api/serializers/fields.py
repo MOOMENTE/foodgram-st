@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 class AbsoluteURLImageField(serializers.ImageField):
 
-    def to_representation(self, value):                          
+    def to_representation(self, value):
         url = super().to_representation(value)
         if not url:
             return url

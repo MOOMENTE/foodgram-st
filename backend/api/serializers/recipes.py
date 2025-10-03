@@ -1,8 +1,8 @@
-from collections.abc import Mapping
 from typing import Iterable
 
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
+from rest_framework.exceptions import NotAuthenticated
 
 from api.serializers.fields import AbsoluteURLImageField
 from api.serializers.users import UserSerializer
@@ -76,17 +76,18 @@ class RecipeReadSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_is_favorited(self, obj: Recipe) -> bool:
-        return self._check_relation(obj, "favorites")
+        return self._check_relation(obj.favorites)
 
     def get_is_in_shopping_cart(self, obj: Recipe) -> bool:
-        return self._check_relation(obj, "shopping_carts")
+        return self._check_relation(obj.shopping_carts)
 
-    def _check_relation(self, obj: Recipe, manager_name: str) -> bool:
+    def _check_relation(self, manager) -> bool:
         request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return False
-        manager = getattr(obj, manager_name)
-        return manager.filter(user=request.user).exists()
+        return bool(
+            request
+            and request.user.is_authenticated
+            and manager.filter(user=request.user).exists()
+        )
 
 
 class RecipeWriteSerializer(serializers.ModelSerializer):
@@ -109,40 +110,34 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         read_only_fields = ("id",)
 
     def validate(self, attrs: dict) -> dict:
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            raise NotAuthenticated(
+                "Учетные данные для аутентификации не предоставлены."
+            )
         attrs = super().validate(attrs)
-        initial_data = getattr(self, "initial_data", {})
-        if "image" in initial_data:
-            image_value = initial_data.get("image")
-            if image_value in (None, "") or (
-                isinstance(image_value, str) and not image_value.strip()
-            ):
-                raise serializers.ValidationError(
-                    {"image": ["Изображение обязательно для рецепта."]}
-                )
-        if self.instance is not None:
-            has_ingredients = "ingredients" in attrs
-            if not has_ingredients and isinstance(initial_data, Mapping):
-                has_ingredients = "ingredients" in initial_data
-            if not has_ingredients:
-                raise serializers.ValidationError(
-                    {"ingredients": ["Нужно указать ингредиенты рецепта."]}
-                )
-        return attrs
-
-    def validate_ingredients(
-        self,
-        ingredients: Iterable[dict],
-    ) -> Iterable[dict]:
+        ingredients = attrs.get("ingredients")
         if not ingredients:
             raise serializers.ValidationError(
-                "Нужно выбрать хотя бы один ингредиент."
+                {"ingredients": ["Нужно выбрать хотя бы один ингредиент."]}
             )
         ingredient_ids = [item["id"].id for item in ingredients]
         if len(ingredient_ids) != len(set(ingredient_ids)):
             raise serializers.ValidationError(
-                "Ингредиенты не должны повторяться."
+                {"ingredients": ["Ингредиенты не должны повторяться."]}
             )
-        return ingredients
+        return attrs
+
+    def validate_image(self, value):
+        if value in (None, ""):
+            raise serializers.ValidationError(
+                {"image": ["Изображение обязательно для рецепта."]}
+            )
+        if isinstance(value, str) and not value.strip():
+            raise serializers.ValidationError(
+                {"image": ["Изображение обязательно для рецепта."]}
+            )
+        return value
 
     def create(self, validated_data: dict) -> Recipe:
         ingredients = validated_data.pop("ingredients")
@@ -151,14 +146,17 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         return recipe
 
     def update(self, instance: Recipe, validated_data: dict) -> Recipe:
-        ingredients = validated_data.pop("ingredients", None)
-        if ingredients is None:
-            raise serializers.ValidationError(
-                {"ingredients": ["Нужно указать ингредиенты рецепта."]}
-            )
+        ingredients = validated_data.pop("ingredients")
         instance.recipe_ingredients.all().delete()
         self._set_ingredients(instance, ingredients)
         return super().update(instance, validated_data)
+
+    def to_representation(self, instance: Recipe) -> dict:
+        read_serializer = RecipeReadSerializer(
+            instance,
+            context=self.context,
+        )
+        return read_serializer.data
 
     def _set_ingredients(
         self,

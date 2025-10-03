@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from django.conf import settings
 from django.db.models.signals import post_save, pre_save
@@ -9,7 +10,6 @@ from .models import User
 
 @receiver(pre_save, sender=User)
 def delete_old_avatar(sender, instance, **kwargs):
-    """Удаляет старый аватар при загрузке нового."""
     if not instance.pk:
         return
 
@@ -30,7 +30,6 @@ def delete_old_avatar(sender, instance, **kwargs):
 
 @receiver(post_save, sender=User)
 def set_default_avatar(sender, instance, created, **kwargs):
-    """Устанавливает аватар для админа."""
     if created and not instance.avatar:
         default_avatar_path = os.path.join(
             settings.BASE_DIR,
@@ -43,8 +42,6 @@ def set_default_avatar(sender, instance, created, **kwargs):
         if os.path.exists(default_avatar_path):
             avatar_dir = os.path.join(settings.MEDIA_ROOT, "avatars")
             os.makedirs(avatar_dir, exist_ok=True)
-
-            import shutil
 
             new_avatar_path = os.path.join(
                 avatar_dir, f"user_{instance.id}_avatar.png"

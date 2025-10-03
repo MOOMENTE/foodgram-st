@@ -8,7 +8,6 @@ from api.serializers.recipes import (
 from api.serializers.users import (
     AvatarSerializer,
     SubscriptionSerializer,
-    UserCreateSerializer,
     UserSerializer,
 )
 
@@ -20,6 +19,5 @@ __all__ = [
     "RecipeWriteSerializer",
     "RecipeCompactSerializer",
     "SubscriptionSerializer",
-    "UserCreateSerializer",
     "UserSerializer",
 ]
